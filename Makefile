@@ -32,7 +32,7 @@ OBJS := $(SRCS:.c=.o)
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o bin/$@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 %.o: %.c zterm.h
 	$(CC) $(CFLAGS) -c -o $@ $<
