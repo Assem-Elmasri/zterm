@@ -7,17 +7,17 @@
  */
 
 #include "zterm.h"
+#include <stdio.h>
 
 /* ══════════════════════════════════════════════════════════════════════════
    Variable expansion  ($VAR, ${VAR}, $?)
    ══════════════════════════════════════════════════════════════════════════ */
 
-char *expand_vars(const char *s)
-{
+char *expand_vars(const char *s) {
     char out[MAX_INPUT * 4];
-    int  oi  = 0;
-    int  si  = 0;
-    int  len = (int)strlen(s);
+    int oi = 0;
+    int si = 0;
+    int len = (int)strlen(s);
 
     while (si < len && oi < (int)sizeof(out) - 1) {
 
@@ -39,7 +39,7 @@ char *expand_vars(const char *s)
         if (s[si] == '?') {
             /* Exit status */
             char num[16];
-            int  nl = snprintf(num, sizeof(num), "%d", g_last_status);
+            int nl = snprintf(num, sizeof(num), "%d", g_last_status);
             if (oi + nl < (int)sizeof(out) - 1) {
                 memcpy(&out[oi], num, nl);
                 oi += nl;
@@ -50,11 +50,12 @@ char *expand_vars(const char *s)
             /* ${VAR} */
             si++;
             char var[256];
-            int  vi = 0;
+            int vi = 0;
             while (s[si] && s[si] != '}' && vi < 255)
                 var[vi++] = s[si++];
             var[vi] = '\0';
-            if (s[si] == '}') si++;
+            if (s[si] == '}')
+                si++;
 
             const char *v = getenv(var);
             if (v) {
@@ -68,7 +69,7 @@ char *expand_vars(const char *s)
         } else if (isalpha((unsigned char)s[si]) || s[si] == '_') {
             /* $VAR */
             char var[256];
-            int  vi = 0;
+            int vi = 0;
             while ((isalnum((unsigned char)s[si]) || s[si] == '_') && vi < 255)
                 var[vi++] = s[si++];
             var[vi] = '\0';
@@ -96,8 +97,7 @@ char *expand_vars(const char *s)
    Tilde expansion  (~, ~/path, ~username)
    ══════════════════════════════════════════════════════════════════════════ */
 
-char *expand_tilde(const char *s)
-{
+char *expand_tilde(const char *s) {
     if (s[0] != '~')
         return strdup(s);
 
@@ -115,8 +115,8 @@ char *expand_tilde(const char *s)
 
     } else {
         /* ~username/path */
-        char        uname[64];
-        int         i = 0;
+        char uname[64];
+        int i = 0;
         const char *p = s + 1;
         while (*p && *p != '/' && i < 63)
             uname[i++] = *p++;
@@ -126,7 +126,7 @@ char *expand_tilde(const char *s)
         if (pw)
             snprintf(out, sizeof(out), "%s%s", pw->pw_dir, p);
         else
-            strncpy(out, s, sizeof(out));
+            snprintf(out, sizeof(out), "%s", s);
     }
 
     return strdup(out);
@@ -136,12 +136,11 @@ char *expand_tilde(const char *s)
    Command substitution  $(cmd)
    ══════════════════════════════════════════════════════════════════════════ */
 
-char *expand_cmdsub(const char *s)
-{
+char *expand_cmdsub(const char *s) {
     char out[MAX_INPUT * 4];
-    int  oi  = 0;
-    int  si  = 0;
-    int  len = (int)strlen(s);
+    int oi = 0;
+    int si = 0;
+    int len = (int)strlen(s);
 
     while (si < len && oi < (int)sizeof(out) - 2) {
 
@@ -155,15 +154,19 @@ char *expand_cmdsub(const char *s)
         int start = si + 2;
         si += 2;
         while (s[si] && depth > 0) {
-            if      (s[si] == '(') depth++;
-            else if (s[si] == ')') depth--;
+            if (s[si] == '(')
+                depth++;
+            else if (s[si] == ')')
+                depth--;
             si++;
         }
 
         /* Extract inner command text */
-        int  ilen = si - start - 1;
-        if (ilen < 0)            ilen = 0;
-        if (ilen >= MAX_INPUT)   ilen = MAX_INPUT - 1;
+        int ilen = si - start - 1;
+        if (ilen < 0)
+            ilen = 0;
+        if (ilen >= MAX_INPUT)
+            ilen = MAX_INPUT - 1;
 
         char inner[MAX_INPUT];
         strncpy(inner, s + start, ilen);
@@ -189,7 +192,7 @@ char *expand_cmdsub(const char *s)
         close(pfd[PIPE_WRITE]);
 
         char buf[MAX_INPUT];
-        int  nr;
+        int nr;
         while ((nr = read(pfd[PIPE_READ], buf, sizeof(buf) - 1)) > 0) {
             buf[nr] = '\0';
             /* Strip trailing newlines */
@@ -213,10 +216,11 @@ char *expand_cmdsub(const char *s)
    Full word expansion  (tilde → vars → command substitution)
    ══════════════════════════════════════════════════════════════════════════ */
 
-char *expand_word(const char *w)
-{
+char *expand_word(const char *w) {
     char *t = expand_tilde(w);
-    char *v = expand_vars(t);   free(t);
-    char *c = expand_cmdsub(v); free(v);
+    char *v = expand_vars(t);
+    free(t);
+    char *c = expand_cmdsub(v);
+    free(v);
     return c;
 }
